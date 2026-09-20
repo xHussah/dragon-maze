@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dragon's Maze</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐉</text></svg>" />
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ── Reset & base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0d0d1a;
+      --bg2:       #13132b;
+      --panel:     #1a1a35;
+      --border:    #2e2e6e;
+      --gold:      #f5c842;
+      --gold-dim:  #a88820;
+      --green:     #4cff91;
+      --red:       #ff4c6a;
+      --blue:      #4ca8ff;
+      --text:      #e8e8ff;
+      --text-dim:  #7878aa;
+      --pixel:     'Press Start 2P', monospace;
+    }
+
+    html, body {
+      width: 100%; height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--pixel);
+      overflow: hidden;
+      user-select: none;
+    }
+
+    /* ── Screens (shared) ── */
+    .screen {
+      position: fixed; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      background: var(--bg);
+      z-index: 10;
+      transition: opacity 0.4s ease;
+    }
+    .screen.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    /* ── Stars background ── */
+    #stars {
+      position: fixed; inset: 0;
+      background:
+        radial-gradient(1px 1px at 10% 15%, #fff 0%, transparent 100%),
+        radial-gradient(1px 1px at 30% 40%, #aaf 0%, transparent 100%),
+        radial-gradient(1px 1px at 55% 20%, #fff 0%, transparent 100%),
+        radial-gradient(1px 1px at 70% 60%, #aaf 0%, transparent 100%),
+        radial-gradient(1px 1px at 85% 10%, #fff 0%, transparent 100%),
+        radial-gradient(1px 1px at 20% 75%, #fff 0%, transparent 100%),
+        radial-gradient(1px 1px at 90% 85%, #aaf 0%, transparent 100%),
+        radial-gradient(1px 1px at 45% 90%, #fff 0%, transparent 100%);
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* ── Intro screen ── */
+    #intro-screen {
+      gap: 0;
+      background: var(--bg);
+      z-index: 20;
+    }
+
+    .intro-title {
+      font-size: clamp(14px, 3vw, 26px);
+      color: var(--gold);
+      text-shadow: 0 0 20px var(--gold-dim);
+      letter-spacing: 4px;
+      margin-bottom: 48px;
+      animation: flicker 3s infinite;
+    }
+
+    @keyframes flicker {
+      0%, 95%, 100% { opacity: 1; }
+      96%           { opacity: 0.6; }
+      98%           { opacity: 0.9; }
+    }
+
+    .intro-scene {
+      position: relative;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      gap: 16px;
+      margin-bottom: 40px;
+    }
+
+    /* CSS pixel character */
+    .pixel-char {
+      width: 64px; height: 80px;
+      position: relative;
+      image-rendering: pixelated;
+      animation: char-bob 1s ease-in-out infinite alternate;
+    }
+
+    @keyframes char-bob {
+      from { transform: translateY(0); }
+      to   { transform: translateY(-6px); }
+    }
+
+    .pixel-char .head {
+      width: 32px; height: 32px;
+      background: #f5c0a0;
+      border: 3px solid #8b4513;
+      position: absolute; top: 0; left: 16px;
+    }
+    .pixel-char .eye-l, .pixel-char .eye-r {
+      width: 6px; height: 6px;
+      background: #1a1a2e;
+      position: absolute; top: 10px;
+    }
+    .pixel-char .eye-l { left: 20px; }
+    .pixel-char .eye-r { left: 32px; }
+    .pixel-char .mouth {
+      width: 12px; height: 4px;
+      background: #8b2020;
+      position: absolute; top: 22px; left: 26px;
+    }
+    .pixel-char .body {
+      width: 38px; height: 28px;
+      background: #3a7bd5;
+      border: 3px solid #1a3a7a;
+      position: absolute; top: 29px; left: 13px;
+    }
+    .pixel-char .legs {
+      width: 38px; height: 16px;
+      position: absolute; top: 54px; left: 13px;
+      display: flex; gap: 4px;
+    }
+    .pixel-char .leg {
+      flex: 1;
+      background: #8b4513;
+      border: 2px solid #5a2d0c;
+    }
+    .pixel-char .sword {
+      width: 6px; height: 28px;
+      background: #c0c0c0;
+      border: 2px solid #808080;
+      position: absolute; top: 28px; left: 4px;
+    }
+
+    /* Chat bubble */
+    .chat-bubble {
+      background: #ffffff;
+      color: #1a1a2e;
+      font-size: 9px;
+      line-height: 1.8;
+      padding: 12px 16px;
+      border-radius: 12px;
+      border: 3px solid #cccccc;
+      max-width: 200px;
+      position: relative;
+      bottom: 20px;
+      animation: bubble-pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+    }
+
+    @keyframes bubble-pop {
+      from { transform: scale(0); opacity: 0; }
+      to   { transform: scale(1); opacity: 1; }
+    }
+
+    .chat-bubble::after {
+      content: '';
+      position: absolute;
+      bottom: -14px; left: 20px;
+      border: 7px solid transparent;
+      border-top-color: #ffffff;
+    }
+
+    .chat-bubble::before {
+      content: '';
+      position: absolute;
+      bottom: -20px; left: 17px;
+      border: 10px solid transparent;
+      border-top-color: #cccccc;
+    }
+
+    .intro-btn {
+      margin-top: 8px;
+      padding: 14px 32px;
+      background: var(--gold);
+      color: #0d0d1a;
+      font-family: var(--pixel);
+      font-size: 11px;
+      border: none;
+      cursor: pointer;
+      box-shadow: 4px 4px 0 var(--gold-dim);
+      transition: transform 0.1s, box-shadow 0.1s;
+    }
+    .intro-btn:hover  { transform: translate(-2px,-2px); box-shadow: 6px 6px 0 var(--gold-dim); }
+    .intro-btn:active { transform: translate(2px, 2px);  box-shadow: 2px 2px 0 var(--gold-dim); }
+
+    /* ── Instructions ── */
+    #instructions-screen { background: rgba(13,13,26,0.97); z-index: 15; }
+
+    .instructions-box {
+      background: var(--panel);
+      border: 3px solid var(--border);
+      padding: 32px 40px;
+      max-width: 480px; width: 90%;
+      box-shadow: 8px 8px 0 #0a0a18;
+    }
+
+    .instructions-box h2 {
+      font-size: 13px; color: var(--gold);
+      margin-bottom: 28px; text-align: center; letter-spacing: 2px;
+    }
+
+    .instructions-box .legend {
+      display: grid;
+      grid-template-columns: 40px 1fr;
+      gap: 14px 16px;
+      margin-bottom: 28px;
+      font-size: 8px; line-height: 1.6; color: var(--text-dim);
+    }
+
+    .legend-icon {
+      width: 32px; height: 32px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+      background: var(--bg2); border: 2px solid var(--border);
+    }
+
+    .legend-text { align-self: center; }
+    .legend-text strong { color: var(--text); display: block; margin-bottom: 2px; }
+
+    .controls-hint {
+      font-size: 8px; color: var(--text-dim);
+      text-align: center; line-height: 2;
+      border-top: 1px solid var(--border);
+      padding-top: 20px; margin-bottom: 24px;
+    }
+
+    /* ── HUD ── */
+    #hud {
+      position: fixed; top: 0; left: 0; right: 0;
+      height: 56px; background: var(--bg2);
+      border-bottom: 3px solid var(--border);
+      display: flex; align-items: center;
+      justify-content: space-between;
+      padding: 0 20px; z-index: 5;
+    }
+
+    .hud-item { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+    .hud-label { font-size: 6px; color: var(--text-dim); letter-spacing: 2px; }
+    .hud-value { font-size: 12px; color: var(--gold); }
+    #hud-timer  { color: var(--green); }
+    #hud-level  { color: var(--blue); }
+
+    /* ── Canvas ── */
+    #game-wrap {
+      position: fixed; inset: 56px 0 0 0;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--bg);
+    }
+
+    #game-canvas {
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      display: block;
+      border: 3px solid var(--border);
+      box-shadow: 0 0 40px rgba(76,168,255,0.15);
+    }
+
+    /* ── Fog canvas ── */
+    #fog-canvas {
+      position: fixed; inset: 56px 0 0 0;
+      pointer-events: none; z-index: 4;
+    }
+
+    /* ── Win screen ── */
+    #win-screen { background: rgba(13,13,26,0.97); z-index: 20; }
+
+    .win-box {
+      background: var(--panel); border: 3px solid var(--gold);
+      padding: 40px 48px; max-width: 420px; width: 90%;
+      box-shadow: 8px 8px 0 var(--gold-dim); text-align: center;
+    }
+
+    .win-title { font-size: 14px; color: var(--gold); margin-bottom: 8px; animation: flicker 2s infinite; }
+    .win-subtitle { font-size: 8px; color: var(--text-dim); margin-bottom: 32px; line-height: 2; }
+
+    .win-stats {
+      display: flex; justify-content: space-around;
+      margin-bottom: 32px; padding: 20px 0;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .win-stat-label { font-size: 6px; color: var(--text-dim); letter-spacing: 1px; margin-bottom: 8px; }
+    .win-stat-value { font-size: 16px; color: var(--green); }
+
+    /* ── Game over ── */
+    #gameover-screen { background: rgba(13,13,26,0.97); z-index: 20; }
+
+
+    .gameover-box {
+      background: var(--panel); border: 3px solid var(--red);
+      padding: 40px 48px; max-width: 400px; width: 90%;
+      box-shadow: 8px 8px 0 #7a1a2e; text-align: center;
+    }
+
+    .gameover-title { font-size: 14px; color: var(--red); margin-bottom: 8px; }
+    .gameover-sub { font-size: 8px; color: var(--text-dim); margin-bottom: 32px; line-height: 2; }
+  /* ── Win emoji (all levels) ── */
+  .win-emoji {
+    font-size: 44px;
+    display: block;
+    margin-bottom: 8px;
+    animation: crown-bounce 0.5s cubic-bezier(0.175,0.885,0.32,1.275) both;
+  }
+
+  @keyframes crown-bounce {
+    from { transform: scale(0) rotate(-15deg); opacity: 0; }
+    to   { transform: scale(1) rotate(0deg);   opacity: 1; }
+  }
+
+  /* ── Share button (small, consistent across screens) ── */
+  .share-btn {
+    display: block;
+    margin: 8px auto 0;
+    font-family: var(--pixel);
+    font-size: 7px;
+    padding: 9px 18px;
+    background: transparent;
+    color: var(--text-dim);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    letter-spacing: 1px;
+    transition: color 0.2s, border-color 0.2s;
+  }
+  .share-btn:hover { color: var(--gold); border-color: var(--gold-dim); }
+
+    /* ── Shared pixel button ── */
+    .px-btn {
+      display: inline-block; padding: 14px 28px;
+      font-family: var(--pixel); font-size: 9px;
+      border: none; cursor: pointer;
+      transition: transform 0.1s, box-shadow 0.1s; margin: 6px;
+    }
+    .px-btn:hover  { transform: translate(-2px,-2px); }
+    .px-btn:active { transform: translate(2px, 2px);  }
+
+    .px-btn.green  { background: var(--green);  color: #0d1a0d; box-shadow: 4px 4px 0 #1a7a40; }
+    .px-btn.green:hover  { box-shadow: 6px 6px 0 #1a7a40; }
+    .px-btn.green:active { box-shadow: 2px 2px 0 #1a7a40; }
+
+    .px-btn.red    { background: var(--red);    color: #1a0d0d; box-shadow: 4px 4px 0 #7a1a2e; }
+    .px-btn.red:hover  { box-shadow: 6px 6px 0 #7a1a2e; }
+    .px-btn.red:active { box-shadow: 2px 2px 0 #7a1a2e; }
+
+    .px-btn.blue   { background: var(--blue);   color: #0d0d1a; box-shadow: 4px 4px 0 #1a3a7a; }
+    .px-btn.blue:hover  { box-shadow: 6px 6px 0 #1a3a7a; }
+    .px-btn.blue:active { box-shadow: 2px 2px 0 #1a3a7a; }
+
+    /* ── Surprise banner ── */
+    #surprise-banner {
+      position: fixed; top: 70px; left: 50%; transform: translateX(-50%);
+      background: var(--red); color: #fff;
+      font-family: var(--pixel); font-size: 8px;
+      padding: 10px 24px; z-index: 30;
+      border: 2px solid #fff; box-shadow: 4px 4px 0 #7a1a2e;
+      transition: opacity 0.5s; pointer-events: none; white-space: nowrap;
+    }
+    #surprise-banner.hidden { opacity: 0; }
+
+    /* ── Level badge ── */
+    #level-badge {
+      position: fixed; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      pointer-events: none; z-index: 25;
+      opacity: 0; transition: opacity 0.3s;
+    }
+    #level-badge.show { opacity: 1; }
+
+    .badge-inner {
+      font-size: clamp(20px, 5vw, 36px);
+      color: var(--gold); text-shadow: 0 0 30px var(--gold-dim);
+      text-align: center; line-height: 1.8;
+    }
+    .badge-inner span { display: block; font-size: clamp(10px,2vw,16px); color: var(--text-dim); }
+
+    /* ── Touch controls ── */
+    #touch-controls {
+      position: fixed; bottom: 24px; right: 24px;
+      display: none; flex-direction: column; align-items: center;
+      gap: 4px; z-index: 6;
+    }
+    .touch-row { display: flex; gap: 4px; }
+    .touch-btn {
+      width: 52px; height: 52px;
+      background: var(--panel); border: 2px solid var(--border);
+      color: var(--text); font-size: 20px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; -webkit-tap-highlight-color: transparent;
+    }
+    .touch-btn:active { background: var(--border); }
+
+    @media (pointer: coarse) { #touch-controls { display: flex; } }
+  </style>
+</head>
+<body>
+
+<div id="stars"></div>
+
+<!-- ══ INTRO ══ -->
+<div id="intro-screen" class="screen">
+  <h1 class="intro-title">DRAGON'S MAZE</h1>
+
+  <div class="intro-scene">
+    <div class="pixel-char">
+      <div class="sword"></div>
+      <div class="head">
+        <div class="eye-l"></div>
+        <div class="eye-r"></div>
+        <div class="mouth"></div>
+      </div>
+      <div class="body"></div>
+      <div class="legs">
+        <div class="leg"></div>
+        <div class="leg"></div>
+      </div>
+    </div>
+    <div class="chat-bubble">
+      Help! A dragon<br>trapped me in<br>the maze!<br><br>Save me! 🗡️
+    </div>
+  </div>
+
+  <button class="intro-btn" id="start-btn">▶ START GAME</button>
+</div>
+
+<!-- ══ INSTRUCTIONS ══ -->
+<div id="instructions-screen" class="screen hidden">
+  <div class="instructions-box">
+    <h2>HOW TO PLAY</h2>
+    <div class="legend">
+      <div class="legend-icon">🧍</div>
+      <div class="legend-text"><strong>You</strong>Reach the door to escape</div>
+      <div class="legend-icon">🐉</div>
+      <div class="legend-text"><strong>Dragon</strong>Moves when it sees you — avoid it!</div>
+      <div class="legend-icon">🚪</div>
+      <div class="legend-text"><strong>Door</strong>Your goal — reach it to win</div>
+      <div class="legend-icon">⭐</div>
+      <div class="legend-text"><strong>Reward</strong>Collect it — dragon freezes one turn</div>
+      <div class="legend-icon">🌲</div>
+      <div class="legend-text"><strong>Tree</strong>Obstacle — you cannot walk through</div>
+    </div>
+    <div class="controls-hint" id="controls-hint">Use arrow keys or WASD to move</div>
+    <div style="text-align:center">
+      <button class="px-btn green" id="play-btn">LET'S GO →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ HUD ══ -->
+<div id="hud">
+  <div class="hud-item">
+    <div class="hud-label">LEVEL</div>
+    <div class="hud-value" id="hud-level">1</div>
+  </div>
+  <div class="hud-item">
+    <div class="hud-label">TIME</div>
+    <div class="hud-value" id="hud-timer">00:00</div>
+  </div>
+  <div class="hud-item">
+    <div class="hud-label">REWARDS</div>
+    <div class="hud-value" id="hud-reward">0</div>
+  </div>
+</div>
+
+<!-- ══ GAME CANVAS ══ -->
+<div id="game-wrap">
+  <canvas id="game-canvas"></canvas>
+</div>
+
+<canvas id="fog-canvas"></canvas>
+
+<!-- ══ SURPRISE BANNER ══ -->
+<div id="surprise-banner" class="hidden"></div>
+
+<!-- ══ LEVEL BADGE ══ -->
+<div id="level-badge">
+  <div class="badge-inner">
+    LEVEL <span id="badge-num"></span>
+  </div>
+</div>
+
+<!-- ══ WIN SCREEN ══ -->
+<div id="win-screen" class="screen hidden">
+  <div class="win-box">
+    <div class="win-emoji" id="win-emoji">🎉</div>
+    <div class="win-title" id="win-title">YOU ESCAPED!</div>
+    <div class="win-subtitle" id="win-message">Amazing work, adventurer.</div>
+    <div class="win-stats">
+      <div>
+        <div class="win-stat-label">TIME</div>
+        <div class="win-stat-value" id="win-time">00:00</div>
+      </div>
+      <div>
+        <div class="win-stat-label">LEVEL</div>
+        <div class="win-stat-value" id="win-level">1</div>
+      </div>
+      <div>
+        <div class="win-stat-label">REWARDS</div>
+        <div class="win-stat-value" id="win-rewards">0</div>
+      </div>
+    </div>
+    <div id="win-buttons">
+      <button class="px-btn green" id="next-level-btn">NEXT LEVEL →</button>
+      <button class="px-btn blue"  id="replay-level-btn">↺ REPLAY</button>
+      <button class="px-btn green" id="start-over-btn" style="display:none">▶ START OVER</button>
+      <button class="share-btn"    id="win-share-btn">🔗 SHARE</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ GAME OVER ══ -->
+<div id="gameover-screen" class="screen hidden">
+  <div class="gameover-box">
+    <div class="gameover-title">CAUGHT!</div>
+    <div class="gameover-sub">The dragon got you.<br>Try again, brave adventurer.</div>
+    <div>
+      <button class="px-btn red"  id="retry-btn">↺ TRY AGAIN</button>
+      <button class="px-btn blue" id="menu-btn">⌂ MENU</button>
+    </div>
+  </div>
+</div>
+
+<div id="touch-controls">
+  <div class="touch-row"><div class="touch-btn" id="tc-up">▲</div></div>
+  <div class="touch-row">
+    <div class="touch-btn" id="tc-left">◀</div>
+    <div class="touch-btn" id="tc-down">▼</div>
+    <div class="touch-btn" id="tc-right">▶</div>
+  </div>
+</div>
+
+<script src="game.js"></script>
+</body>
+</html>
