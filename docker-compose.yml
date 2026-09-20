@@ -1,0 +1,29 @@
+# ═══════════════════════════════════════════════════════════
+#  docker-compose.yml — run the Dragon's Maze backend LOCALLY
+#  (the live server on Elastic Beanstalk does NOT use this file)
+#
+#    docker compose up --build      → http://localhost:8000
+# ═══════════════════════════════════════════════════════════
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: dragons-maze-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      # Your backend folder is mounted into the container, so the
+      # policies in ./backend/policies are exactly what the server serves
+      - ./backend:/app
+    environment:
+      # DEV_MODE=true switches ON the local-only extras:
+      #   /docs (interactive API page) and POST /train/... (retraining).
+      # On the live server this is not set, so both are switched off.
+      - DEV_MODE=true
+      # Websites allowed to call this API from a browser
+      # (5500 = VS Code Live Server / python -m http.server 5500)
+      - ALLOWED_ORIGINS=http://localhost:5500,http://127.0.0.1:5500
+      - POLICIES_DIR=policies
+    restart: unless-stopped
